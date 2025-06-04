@@ -1,4 +1,4 @@
-# Example package
+# Swift Example: Getting Started Guide package
 
 An example package to be used as part of Swift's getting started guides.
 
