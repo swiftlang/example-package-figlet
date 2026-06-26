@@ -10,7 +10,7 @@
 //
 //===--------------------------------------------------------------------
 
-// This code is take from https://github.com/dfreniche/SwiftFiglet/, license as follows:
+// This code is taken from https://github.com/dfreniche/SwiftFiglet/, license as follows:
 
 /*
 
