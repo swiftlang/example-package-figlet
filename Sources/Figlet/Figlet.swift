@@ -10,27 +10,24 @@
 //
 //===--------------------------------------------------------------------
 
-import Foundation
+public struct Figlet {
+    /// The standard FIGlet font, embedded in the binary at build time.
+    private static let font = Font(String(decoding: PackageResources.standard_flf, as: UTF8.self))
 
-public enum Figlet {
+    /// Renders text as ASCII art using the standard FIGlet font.
+    ///
+    /// Characters that the font doesn't include are skipped.
+    /// - Parameter text: The text to render.
+    /// - Returns: The rendered text, with lines separated by newlines.
+    public static func render(_ text: String) -> String {
+        (0..<font.height)
+            .map { row in text.compactMap { character in font.glyphs[character]?[row] }.joined() }
+            .joined(separator: "\n")
+    }
+
+    /// Prints text as ASCII art using the standard FIGlet font.
+    /// - Parameter text: The text to print.
     public static func say(_ text: String) {
-        guard let figletFileURL = Bundle.module.url(forResource: "standard", withExtension: "flf") else {
-            fatalError("invalid figlet font file: missing resource")
-        }
-        guard let figletFile = FigletFile.from(url: figletFileURL) else {
-            fatalError("invalid figlet font file: invalid file")
-        }
-        guard let font = Font.from(file: figletFile) else {
-            fatalError("invalid figlet font file: invalid font")
-        }
-
-        for line in 0 ..< font.height {
-            for c in text {
-                if let fontCharacter = font.characters[c], line < fontCharacter.lines.count {
-                    print(fontCharacter.lines[line], separator: "", terminator: "")
-                }
-            }
-            print("")
-        }
+        print(render(text))
     }
 }
