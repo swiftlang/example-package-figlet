@@ -10,100 +10,57 @@
 //
 //===--------------------------------------------------------------------
 
-// This code is taken from https://github.com/dfreniche/SwiftFiglet/, license as follows:
+/// A FIGlet font, parsed from the contents of a `.flf` file.
+///
+/// For a description of the file format, see http://www.jave.de/docs/figfont.txt
+struct Font {
+    /// The number of lines in each glyph.
+    let height: Int
 
-/*
+    /// The lines that make up each character's glyph, from top to bottom.
+    let glyphs: [Character: [String]]
 
-MIT - Licence
+    init(_ content: String) {
+        var lines = content.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)[...]
 
-Copyright (c) 2020 Diego Freniche
+        // The header looks like `flf2a$ 6 5 16 15 11 0 24463`. The character after `flf2a` is
+        // the hard blank, which glyphs use in place of spaces. The second and sixth fields are
+        // the height of each glyph and the number of comment lines that follow the header.
+        let header = lines.removeFirst().split(separator: " ")
+        let hardBlank = header[0].last!
+        let height = Int(header[1])!
+        lines.removeFirst(Int(header[5])!)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-*/
-
-import Foundation
-
-extension Figlet {
-    public struct Font {
-        /// Loads a Figlet font file and returns a fully loaded, ready to use `SFKFont` object
-        /// - Parameter url: URL to the font file
-        static func from(url: URL) -> Self? {
-            FigletFile.from(url:  url).flatMap(Self.from(file:))
-        }
-
-        /// Loads a Figlet font file and returns a fully loaded, ready to use `SFKFont` object
-        /// - Parameter file: font file name path including extension
-        static func from(fileName: String) -> Self? {
-            FigletFile.from(fileName: fileName).flatMap(Self.from(file:))
-        }
-
-        /// Given a Figlet font file already loaded returns a ready to use `SFKFont` object
-        static func from(file figletFile: FigletFile) -> Self? {
-            var height = figletFile.header.height
-
-            var nextASCIIChar = 32 // 32 is Space
-
-            //        let separator = figletFile.characterLineTerminator()
-
-            var arrayLines = [String]()
-            var characters = [Character: Char]()
-            for line in figletFile.lines {
-                let fontLine: Substring
-
-                if arrayLines.count < height - 1 {
-                    // remove last @
-                    fontLine = line.dropLast()
-                } else {
-                    // remove last @@
-                    fontLine = line.dropLast().dropLast()
-                }
-                arrayLines.append(String(fontLine.replacingOccurrences(of: String(figletFile.header.hardBlank), with: " ")))
-
-                // last line
-                if arrayLines.count == height {
-                    let char = Char(charLines: arrayLines)
-                    characters[Character(UnicodeScalar(nextASCIIChar) ?? " ")] = char
-                    height = char.height
-
-                    nextASCIIChar = nextASCIIChar + 1
-                    arrayLines = []
-                }
+        // Each line of a glyph ends with an end mark, usually `@`, which is doubled on the last line.
+        func nextGlyph() -> [String] {
+            let rows = lines.prefix(height)
+            lines.removeFirst(height)
+            return rows.enumerated().map { row, line in
+                let endMarkCount = row == height - 1 ? 2 : 1
+                return String(line.dropLast(endMarkCount).map { $0 == hardBlank ? " " : $0 })
             }
-
-            return Self(figletFile: figletFile, height: height, characters: characters)
         }
 
-        private let figletFile: FigletFile
-        public let height: Int
-        public let characters: [Character: Char]
+        var glyphs = [Character: [String]]()
 
-        init(figletFile: FigletFile, height: Int, characters: [Character: Char]) {
-            self.figletFile = figletFile
-            self.height = height
-            self.characters = characters
+        // Glyphs for printable ASCII and seven German characters come first, in a fixed order.
+        let requiredCodes: [UInt8] = Array(32...126) + [196, 214, 220, 228, 246, 252, 223]
+        for code in requiredCodes {
+            glyphs[Character(Unicode.Scalar(code))] = nextGlyph()
         }
-    }
-}
 
-extension Figlet {
-    public struct Char {
-        /// Represents an empty Character
-        public static let EmptyChar = Self(charLines: [])
-
-        /// height in lines of this Character
-        public let height: Int
-
-        /// lines, from top to bottom that made up this Character
-        public let lines: [String]
-
-        public init(charLines: [String]) {
-            self.lines = charLines
-            self.height = charLines.count
+        // Each remaining glyph follows a line that starts with its character code, in decimal
+        // or hexadecimal: for example, `160  NO-BREAK SPACE` or `0x0100  LATIN CAPITAL LETTER A WITH MACRON`.
+        while let tag = lines.first?.split(separator: " ").first {
+            lines.removeFirst()
+            let code = tag.hasPrefix("0x") ? UInt32(tag.dropFirst(2), radix: 16) : UInt32(tag)
+            let glyph = nextGlyph()
+            if let code, let scalar = Unicode.Scalar(code) {
+                glyphs[Character(scalar)] = glyph
+            }
         }
+
+        self.height = height
+        self.glyphs = glyphs
     }
 }

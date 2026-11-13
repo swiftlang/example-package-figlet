@@ -27,15 +27,6 @@ components that this product depends on.
 -------------------------------------------------------------------------------
 
 
-This product contains a derivation of https://github.com/dfreniche/SwiftFiglet, specifically `SFKFigletFile.swift` and `SFKFont.swift`.
-
-  * LICENSE (MIT License)
-    * https://github.com/dfreniche/SwiftFiglet/tree/master#license
-  * HOMEPAGE:
-    * https://github.com/dfreniche/SwiftFiglet
-
----
-
 This product contains a font from http://www.figlet.org.
 
   * HOMEPAGE:
